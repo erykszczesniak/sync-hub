@@ -11,7 +11,9 @@ style:
     ignoreEnums: true
     ignoreNumbers: ['-1', '0', '1', '2', '3', '10', '100', '1000']
   ReturnCount:
-    max: 3
+    # Merge rules and validators are decision tables; guard-clause returns read better than nesting.
+    max: 5
+    excludeGuardClauses: true
   UnusedPrivateMember:
     active: true
   WildcardImport:
