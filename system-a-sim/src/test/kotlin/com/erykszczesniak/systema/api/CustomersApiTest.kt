@@ -46,6 +46,25 @@ class CustomersApiTest {
     }
 
     @Test
+    fun `payload exposes exactly the documented fields and no internal ones`() {
+        val customer = fetch("/api/customers?limit=1").items.single()
+
+        assertThat(customer.fieldNames().asSequence().toSet()).containsExactlyInAnyOrder(
+            "id",
+            "email",
+            "firstName",
+            "lastName",
+            "status",
+            "tier",
+            "address",
+            "tags",
+            "createdAt",
+            "updatedAt",
+            "deleted",
+        )
+    }
+
+    @Test
     fun `change feed pages through all customers with a cursor`() {
         val first = fetch("/api/customers?limit=3")
         assertThat(first.items).hasSize(3)

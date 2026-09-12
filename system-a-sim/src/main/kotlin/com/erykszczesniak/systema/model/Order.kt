@@ -1,5 +1,6 @@
 package com.erykszczesniak.systema.model
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import java.math.BigDecimal
 import java.time.Instant
 
@@ -26,5 +27,7 @@ data class Order(
     override val updatedAt: Instant,
     override val deleted: Boolean = false,
 ) : Versioned {
+    /** Internal ordering key; must not leak into the API payload (consumers would see an unexpected field). */
+    @get:JsonIgnore
     override val key: String get() = id
 }
