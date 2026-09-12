@@ -22,6 +22,9 @@ complexity:
   LongParameterList:
     functionThreshold: 8
     constructorThreshold: 10
+    # Parameters with defaults are optional at call sites; JPA entities and DTOs list every column.
+    ignoreDefaultParameters: true
+    ignoreAnnotated: ['Entity', 'Embeddable']
   TooManyFunctions:
     thresholdInClasses: 20
     thresholdInFiles: 20
