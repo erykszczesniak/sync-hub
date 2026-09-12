@@ -244,6 +244,27 @@ class SyncOrchestratorTest {
     }
 
     @Test
+    fun `a quarantine is closed when a clean re-read shows System B already holds that version`() {
+        stubCustomers(page1 = listOf(customer("cus_1", T1)))
+        orchestrator.runIncremental("customers", SyncTrigger.MANUAL)
+        // The same version arrives again, this time drifted (overlap re-read while the source misbehaves).
+        wireMock.resetAll()
+        stubCustomers(page1 = listOf(customer("cus_1", T1).replace("\"email\"", "\"emailAddress\"")), since = T1)
+        orchestrator.runIncremental("customers", SyncTrigger.MANUAL)
+        assertThat(quarantine.countByFeedAndStatus("customers", QuarantineStatus.OPEN)).isEqualTo(1)
+
+        // The source is fixed; the backfill re-reads the record, System B already has it (skipped), quarantine closes.
+        wireMock.resetAll()
+        stubCustomers(page1 = listOf(customer("cus_1", T1)), since = "2026-01-01T00:00:00Z", until = T1)
+        val backfill = orchestrator.runBackfill("customers", Instant.parse("2026-01-01T00:00:00Z"), Instant.parse(T1))
+
+        assertThat(backfill.loaded).isZero()
+        assertThat(backfill.skipped).isEqualTo(1)
+        assertThat(quarantine.countByFeedAndStatus("customers", QuarantineStatus.OPEN)).isZero()
+        assertThat(drift.findByFeedAndStatus("customers", DriftStatus.OPEN)).isEmpty()
+    }
+
+    @Test
     fun `unknown feeds are rejected and a backfill window must be ordered`() {
         assertThrows<UnknownFeedException> { orchestrator.runIncremental("invoices", SyncTrigger.MANUAL) }
         assertThrows<IllegalArgumentException> {

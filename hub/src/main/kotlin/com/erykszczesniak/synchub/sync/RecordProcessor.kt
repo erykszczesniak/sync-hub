@@ -73,7 +73,9 @@ class RecordProcessor(
             }
 
         val result = pipeline.load(change, runId, recorder, now)
-        if (result.applied) quarantine.supersede(pipeline.name, record.businessKey, record.sourceUpdatedAt, now)
+        // Any clean pass closes an open quarantine of the same key up to the version System B now holds:
+        // also when the load was skipped because that version (or a newer one) was already there.
+        quarantine.supersede(pipeline.name, record.businessKey, result.sourceUpdatedAt, now)
         val outcome = if (result.applied) ProcessOutcome.LOADED else ProcessOutcome.SKIPPED
         return ProcessResult(outcome, result.outcome, driftDetected)
     }
