@@ -37,6 +37,10 @@ class WatermarkStore(
         overlap: Duration,
     ): ExtractionWindow = ExtractionWindow(since = read(feed)?.timestamp?.minus(overlap), until = null)
 
+    /** Forgets every watermark. Only for tests and deliberate full re-syncs. */
+    @Transactional
+    fun reset() = repository.deleteAll()
+
     /** Moves the watermark forward only; a replay or backfill can never move it back. */
     @Transactional
     fun advance(

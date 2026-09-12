@@ -65,6 +65,9 @@ synchub:
       read-timeout: 10s
   sync:
     watermark-overlap: 5s
+    scheduled: ${SYNCHUB_SYNC_SCHEDULED:true}
+    interval: ${SYNCHUB_SYNC_INTERVAL:60s}
+    initial-delay: 15s
   events:
     transport: ${SYNCHUB_EVENTS_TRANSPORT:log}
     topic-prefix: synchub.changes
