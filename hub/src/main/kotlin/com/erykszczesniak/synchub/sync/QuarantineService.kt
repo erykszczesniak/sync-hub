@@ -19,6 +19,7 @@ import java.util.UUID
 @Service
 class QuarantineService(
     private val repository: QuarantinedRecordRepository,
+    private val objectMapper: com.fasterxml.jackson.databind.ObjectMapper,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -99,6 +100,24 @@ class QuarantineService(
             it.resolutionNote = note
             repository.save(it)
         }
+    }
+
+    /** The stored payload of an OPEN quarantined record as a source record, ready to be replayed. */
+    @Transactional(readOnly = true)
+    fun openForReplay(id: UUID): Pair<QuarantinedRecordEntity, SourceRecord> {
+        val entry = repository.findById(id).orElseThrow { NoSuchElementException("Quarantined record $id not found") }
+        require(entry.status == QuarantineStatus.OPEN) {
+            "Quarantined record $id is ${entry.status}, only OPEN records can be replayed"
+        }
+        val record =
+            SourceRecord(
+                entry.feed,
+                entry.businessKey,
+                entry.sourceUpdatedAt ?: Instant.now(),
+                false,
+                objectMapper.readTree(entry.payload),
+            )
+        return entry to record
     }
 
     companion object {

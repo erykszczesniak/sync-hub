@@ -4,7 +4,6 @@ spring:
   profiles:
     default: dev
   jackson:
-    default-property-inclusion: non_null
     serialization:
       write-dates-as-timestamps: false
   jpa:
@@ -68,6 +67,8 @@ synchub:
     scheduled: ${SYNCHUB_SYNC_SCHEDULED:true}
     interval: ${SYNCHUB_SYNC_INTERVAL:60s}
     initial-delay: 15s
+  status:
+    stale-after: ${SYNCHUB_STATUS_STALE_AFTER:5m}
   events:
     transport: ${SYNCHUB_EVENTS_TRANSPORT:log}
     topic-prefix: synchub.changes

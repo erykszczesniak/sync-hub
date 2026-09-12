@@ -15,6 +15,7 @@ import org.slf4j.MDC
 import org.springframework.stereotype.Service
 import java.time.Duration
 import java.time.Instant
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
 
@@ -40,6 +41,7 @@ class SyncOrchestrator(
     private val watermarks: WatermarkStore,
     private val runs: SyncRunRepository,
     private val driftEvents: DriftEventService,
+    private val quarantine: QuarantineService,
     private val outboxPublisher: OutboxPublisher,
     private val sourceProperties: SystemAProperties,
     private val syncProperties: SyncProperties,
@@ -60,6 +62,39 @@ class SyncOrchestrator(
     ): SyncRunEntity {
         require(!to.isBefore(from)) { "backfill window end must not be before its start" }
         return run(feed, SyncMode.BACKFILL, trigger, ExtractionWindow(from, to))
+    }
+
+    /**
+     * Re-runs one quarantined record from its stored payload as a REPLAY run: drift check, mapping and
+     * idempotent load exactly as if the source had sent it again. Never moves the watermark.
+     */
+    fun replay(quarantineId: UUID): SyncRunEntity {
+        val (entry, record) = quarantine.openForReplay(quarantineId)
+        val pipeline = registry.get(entry.feed)
+        val run =
+            runs.save(
+                SyncRunEntity(
+                    feed = entry.feed,
+                    mode = SyncMode.REPLAY,
+                    trigger = SyncTrigger.MANUAL,
+                    watermarkBefore = watermarks.read(entry.feed)?.timestamp,
+                ),
+            )
+        MDC.put("runId", run.id.toString())
+        MDC.put("feed", entry.feed)
+        try {
+            val state = RunState()
+            state.extracted = 1
+            state.newest = Watermark(record.sourceUpdatedAt, record.businessKey)
+            processOne(pipeline, record, run, state)
+            if (state.loaded + state.skipped > 0) quarantine.markReplayed(quarantineId, "replayed in run ${run.id}")
+            finish(run, state, failure = null)
+        } finally {
+            MDC.remove("runId")
+            MDC.remove("feed")
+        }
+        outboxPublisher.publishPending()
+        return run
     }
 
     private fun run(

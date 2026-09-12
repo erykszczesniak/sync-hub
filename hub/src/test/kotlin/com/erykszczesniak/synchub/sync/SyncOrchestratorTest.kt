@@ -214,6 +214,36 @@ class SyncOrchestratorTest {
     }
 
     @Test
+    fun `a quarantined record can be replayed once the cause is fixed`() {
+        stubCustomers(page1 = listOf(customer("cus_1", T1).replace("\"country\":\"PL\"", "\"country\":\"Poland\"")))
+        orchestrator.runIncremental("customers", SyncTrigger.MANUAL)
+        val entry = quarantine.findByFeedAndBusinessKeyAndStatus("customers", "cus_1", QuarantineStatus.OPEN).single()
+        assertThat(entry.reason.name).isEqualTo("VALIDATION")
+
+        // Same payload again: still invalid → re-quarantined, the old entry superseded, nothing loaded.
+        val stillBroken = orchestrator.replay(entry.id)
+        assertThat(stillBroken.mode.name).isEqualTo("REPLAY")
+        assertThat(stillBroken.quarantined).isEqualTo(1)
+        assertThat(quarantine.findById(entry.id).orElseThrow().status).isEqualTo(QuarantineStatus.SUPERSEDED)
+        val reopened =
+            quarantine
+                .findByFeedAndBusinessKeyAndStatus(
+                    "customers",
+                    "cus_1",
+                    QuarantineStatus.OPEN,
+                ).single()
+
+        // Operator fixes the stored payload's cause upstream; here the source resends a valid version via backfill,
+        // which supersedes the open quarantine because the loaded version is at least as new.
+        wireMock.resetAll()
+        stubCustomers(page1 = listOf(customer("cus_1", T1)), since = "2026-01-01T00:00:00Z", until = T1)
+        orchestrator.runBackfill("customers", Instant.parse("2026-01-01T00:00:00Z"), Instant.parse(T1))
+        assertThat(quarantine.findById(reopened.id).orElseThrow().status).isEqualTo(QuarantineStatus.SUPERSEDED)
+        assertThat(customers.findByBusinessKey("cus_1")).isNotNull()
+        assertThrows<IllegalArgumentException> { orchestrator.replay(reopened.id) }
+    }
+
+    @Test
     fun `unknown feeds are rejected and a backfill window must be ordered`() {
         assertThrows<UnknownFeedException> { orchestrator.runIncremental("invoices", SyncTrigger.MANUAL) }
         assertThrows<IllegalArgumentException> {
