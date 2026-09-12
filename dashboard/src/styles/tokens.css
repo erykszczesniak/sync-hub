@@ -35,3 +35,14 @@
   --space-6: 24px;
   --space-8: 32px;
 }
+
+/* Chart series (validated categorical palette, fixed order: loaded, skipped, quarantined). */
+:root {
+  --series-loaded: #2a78d6;
+  --series-skipped: #4a3aa7;
+  --series-quarantined: #eb6834;
+  --series-feed-1: #2a78d6;
+  --series-feed-2: #4a3aa7;
+  --chart-grid: #eceff3;
+  --chart-axis: #6b7280;
+}
