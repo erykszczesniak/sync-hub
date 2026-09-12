@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: system-a-sim
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+  graphql:
+    graphiql:
+      enabled: true
+
+server:
+  port: ${SYSTEM_A_PORT:8081}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+system-a:
+  api-key: ${SYSTEM_A_API_KEY:system-a-dev-key}

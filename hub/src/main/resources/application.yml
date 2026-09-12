@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: sync-hub
+  profiles:
+    default: dev
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: ${HUB_PORT:8080}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+
+synchub:
+  security:
+    admin:
+      username: ${SYNCHUB_ADMIN_USERNAME:admin}
+      password: ${SYNCHUB_ADMIN_PASSWORD:change-me}
+
+logging:
+  level:
+    com.erykszczesniak.synchub: INFO

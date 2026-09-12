@@ -1,0 +1,4 @@
+# Local development profile: no external services required.
+logging:
+  level:
+    com.erykszczesniak.synchub: DEBUG

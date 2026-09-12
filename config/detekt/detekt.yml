@@ -1,0 +1,40 @@
+# Overrides on top of detekt's default rule set (buildUponDefaultConfig = true).
+# Anything not listed here keeps the default.
+
+style:
+  MaxLineLength:
+    maxLineLength: 120
+  MagicNumber:
+    ignorePropertyDeclaration: true
+    ignoreCompanionObjectPropertyDeclaration: true
+    ignoreAnnotation: true
+    ignoreEnums: true
+    ignoreNumbers: ['-1', '0', '1', '2', '3', '10', '100', '1000']
+  ReturnCount:
+    max: 3
+  UnusedPrivateMember:
+    active: true
+  WildcardImport:
+    active: true
+    excludeImports: []
+
+complexity:
+  LongParameterList:
+    functionThreshold: 8
+    constructorThreshold: 10
+  TooManyFunctions:
+    thresholdInClasses: 20
+    thresholdInFiles: 20
+    ignoreDeprecated: true
+  LongMethod:
+    threshold: 80
+
+naming:
+  FunctionNaming:
+    # Test names in backticks read like sentences; do not force camelCase on them.
+    ignoreAnnotated: ['Test', 'ParameterizedTest']
+
+performance:
+  SpreadOperator:
+    # `runApplication<App>(*args)` is the idiomatic Spring Boot entry point.
+    active: false

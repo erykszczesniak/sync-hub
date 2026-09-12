@@ -1,0 +1,4 @@
+# Production / docker profile: everything comes from the environment (see .env.example).
+logging:
+  level:
+    com.erykszczesniak.synchub: INFO
