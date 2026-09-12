@@ -8,6 +8,10 @@ spring:
     hikari:
       maximum-pool-size: 10
 
+synchub:
+  events:
+    transport: ${SYNCHUB_EVENTS_TRANSPORT:kafka}
+
 logging:
   level:
     com.erykszczesniak.synchub: INFO

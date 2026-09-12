@@ -24,6 +24,7 @@ dependencies {
     implementation("org.springframework.graphql:spring-graphql")
     implementation("org.springframework.boot:spring-boot-starter-aop")
     implementation("io.github.resilience4j:resilience4j-spring-boot3:2.3.0")
+    implementation("org.springframework.kafka:spring-kafka")
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("com.h2database:h2")
@@ -41,6 +42,8 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:postgresql")
+    testImplementation("org.testcontainers:kafka")
+    testImplementation("org.springframework.kafka:spring-kafka-test")
     testImplementation("org.wiremock:wiremock-standalone:3.13.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
