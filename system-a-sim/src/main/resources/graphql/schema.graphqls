@@ -1,0 +1,45 @@
+# System A exposes orders over GraphQL. Timestamps are ISO-8601 strings and money amounts are
+# decimal strings so no precision is lost in transport.
+
+type Query {
+    "Orders changed after `updatedSince` (and up to `updatedUntil`), ordered by (updatedAt, id)."
+    orders(updatedSince: String, updatedUntil: String, after: String, first: Int = 100): OrderConnection!
+    order(id: ID!): Order
+}
+
+type OrderConnection {
+    edges: [OrderEdge!]!
+    pageInfo: PageInfo!
+}
+
+type OrderEdge {
+    cursor: String!
+    node: Order!
+}
+
+type PageInfo {
+    endCursor: String
+    hasNextPage: Boolean!
+}
+
+type Order {
+    id: ID!
+    customerId: ID!
+    status: String!
+    total: Money!
+    lines: [OrderLine!]!
+    placedAt: String!
+    updatedAt: String!
+    deleted: Boolean!
+}
+
+type Money {
+    amount: String!
+    currency: String!
+}
+
+type OrderLine {
+    sku: String!
+    quantity: Int!
+    unitPrice: String!
+}
