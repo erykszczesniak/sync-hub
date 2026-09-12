@@ -1,5 +1,5 @@
-# Infrastructure for the sync-hub demo. Application services (hub, System A simulator,
-# dashboard) are added to this file by their own pull requests.
+# The whole sync-hub demo: PostgreSQL (System B + hub state), Kafka (change events), the System A
+# simulator (source), the hub and the dashboard. `docker compose up --build` and open http://localhost:5173.
 services:
   postgres:
     image: postgres:16-alpine
@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: synchub
       POSTGRES_PASSWORD: synchub
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -37,19 +37,56 @@ services:
       KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
       CLUSTER_ID: c3luYy1odWItZGVtby1jbHVzdGVy
     ports:
-      - "29092:29092"
+      - "${KAFKA_HOST_PORT:-29092}:29092"
     healthcheck:
       test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
       interval: 10s
       timeout: 10s
       retries: 12
 
+  system-a-sim:
+    build:
+      context: .
+      dockerfile: system-a-sim/Dockerfile
+    environment:
+      SYSTEM_A_API_KEY: ${SYSTEM_A_API_KEY:-system-a-dev-key}
+    ports:
+      - "${SYSTEM_A_PORT:-8081}:8081"
+
+  hub:
+    build:
+      context: .
+      dockerfile: hub/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      system-a-sim:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/synchub
+      SPRING_DATASOURCE_USERNAME: synchub
+      SPRING_DATASOURCE_PASSWORD: synchub
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SYNCHUB_EVENTS_TRANSPORT: kafka
+      SYSTEM_A_BASE_URL: http://system-a-sim:8081
+      SYSTEM_A_API_KEY: ${SYSTEM_A_API_KEY:-system-a-dev-key}
+      SYNCHUB_ADMIN_USERNAME: ${SYNCHUB_ADMIN_USERNAME:-admin}
+      SYNCHUB_ADMIN_PASSWORD: ${SYNCHUB_ADMIN_PASSWORD:-change-me}
+      SYNCHUB_SYNC_INTERVAL: ${SYNCHUB_SYNC_INTERVAL:-30s}
+    ports:
+      - "${HUB_PORT:-8080}:8080"
+
   dashboard:
     build: ./dashboard
+    depends_on:
+      - hub
     environment:
       HUB_UPSTREAM: hub:8080
     ports:
-      - "5173:8080"
+      - "${DASHBOARD_PORT:-5173}:8080"
 
 volumes:
   pgdata:
