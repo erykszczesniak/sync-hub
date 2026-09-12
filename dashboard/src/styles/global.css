@@ -462,3 +462,41 @@ table.data tr:hover td {
 .section {
   margin-bottom: var(--space-6);
 }
+
+/* --- quarantine payloads --------------------------------------------------- */
+.toolbar .card-title {
+  margin: 0 auto 0 0;
+}
+
+.cell-wrap {
+  white-space: normal;
+  max-width: 360px;
+}
+
+.expander {
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.payload-row td {
+  padding: 0 10px 10px 34px;
+}
+
+.payload {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--color-code-bg);
+  color: var(--color-code-text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre;
+  overflow-x: auto;
+}
