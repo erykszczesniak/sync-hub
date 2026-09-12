@@ -44,5 +44,12 @@ services:
       timeout: 10s
       retries: 12
 
+  dashboard:
+    build: ./dashboard
+    environment:
+      HUB_UPSTREAM: hub:8080
+    ports:
+      - "5173:8080"
+
 volumes:
   pgdata:
