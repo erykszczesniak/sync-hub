@@ -30,14 +30,16 @@ class PostgresMigrationTest {
                 "select version from flyway_schema_history order by installed_rank",
                 String::class.java,
             )
-        assertThat(versions).contains("1")
+        assertThat(versions).containsExactly("1", "2")
 
         val tables =
             jdbc.queryForList(
                 "select table_name from information_schema.tables where table_schema = 'public'",
                 String::class.java,
             )
-        assertThat(tables).contains("feed_watermark", "sync_run", "quarantined_record", "drift_event")
+        assertThat(
+            tables,
+        ).contains("feed_watermark", "sync_run", "quarantined_record", "drift_event", "b_customer", "b_order")
 
         val encoding = jdbc.queryForObject("show server_encoding", String::class.java)
         assertThat(encoding).isEqualTo("UTF8")
