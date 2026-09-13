@@ -18,7 +18,7 @@ import java.util.UUID
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ActiveProfiles("test")
-@Import(QuarantineService::class)
+@Import(QuarantineService::class, org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration::class)
 class QuarantineServiceTest {
     @Autowired
     private lateinit var service: QuarantineService

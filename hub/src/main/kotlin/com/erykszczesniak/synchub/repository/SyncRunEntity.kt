@@ -9,7 +9,7 @@ import jakarta.persistence.Table
 import java.time.Instant
 import java.util.UUID
 
-enum class SyncMode { INCREMENTAL, BACKFILL }
+enum class SyncMode { INCREMENTAL, BACKFILL, REPLAY }
 
 enum class SyncTrigger { SCHEDULED, MANUAL }
 
