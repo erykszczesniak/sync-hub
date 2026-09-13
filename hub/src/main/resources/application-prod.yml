@@ -1,4 +1,13 @@
-# Production / docker profile: everything comes from the environment (see .env.example).
+# Production / docker profile: PostgreSQL; everything comes from the environment (see .env.example).
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+
 logging:
   level:
     com.erykszczesniak.synchub: INFO
