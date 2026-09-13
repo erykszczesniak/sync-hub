@@ -20,6 +20,11 @@ class WatermarkStoreTest {
 
     private val t0 = Instant.parse("2026-01-01T00:00:00Z")
 
+    @org.junit.jupiter.api.BeforeEach
+    fun clean() {
+        store.reset()
+    }
+
     @Test
     fun `first run has no watermark and reads everything`() {
         assertThat(store.read("customers")).isNull()
