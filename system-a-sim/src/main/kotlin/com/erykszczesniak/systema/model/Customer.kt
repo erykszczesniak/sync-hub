@@ -1,5 +1,6 @@
 package com.erykszczesniak.systema.model
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import java.time.Instant
 
 enum class CustomerStatus { ACTIVE, INACTIVE, CHURNED }
@@ -29,5 +30,7 @@ data class Customer(
     /** Tombstone flag: deleted records stay visible in the change feed so consumers can propagate deletes. */
     override val deleted: Boolean = false,
 ) : Versioned {
+    /** Internal ordering key; must not leak into the API payload (consumers would see an unexpected field). */
+    @get:JsonIgnore
     override val key: String get() = id
 }
