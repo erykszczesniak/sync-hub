@@ -44,6 +44,51 @@ synchub:
     admin:
       username: ${SYNCHUB_ADMIN_USERNAME:admin}
       password: ${SYNCHUB_ADMIN_PASSWORD:change-me}
+  source:
+    system-a:
+      base-url: ${SYSTEM_A_BASE_URL:http://localhost:8081}
+      api-key: ${SYSTEM_A_API_KEY:system-a-dev-key}
+      page-size: 100
+      max-pages-per-run: 100
+      connect-timeout: 3s
+      read-timeout: 10s
+  sync:
+    watermark-overlap: 5s
+
+# Outbound resilience for System A (retry is the outermost decorator, then circuit breaker, then rate limiter).
+resilience4j:
+  retry:
+    instances:
+      system-a:
+        max-attempts: 3
+        wait-duration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - com.erykszczesniak.synchub.common.SourceUnavailableException
+        ignore-exceptions:
+          - com.erykszczesniak.synchub.common.SourceAuthException
+          - com.erykszczesniak.synchub.common.SourceResponseException
+  ratelimiter:
+    instances:
+      system-a:
+        limit-for-period: 20
+        limit-refresh-period: 1s
+        timeout-duration: 5s
+  circuitbreaker:
+    instances:
+      system-a:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 2
+        record-exceptions:
+          - com.erykszczesniak.synchub.common.SourceUnavailableException
+        ignore-exceptions:
+          - com.erykszczesniak.synchub.common.SourceAuthException
+          - com.erykszczesniak.synchub.common.SourceResponseException
 
 logging:
   level:
