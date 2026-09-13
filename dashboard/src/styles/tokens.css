@@ -1,0 +1,37 @@
+/* Design tokens: one accent, strictly functional colours, mono for machine identity. */
+:root {
+  --color-bg: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f3f6;
+  --color-border: #e3e6eb;
+  --color-text: #111827;
+  --color-text-muted: #6b7280;
+  --color-accent: #1d6ff2;
+  --color-accent-soft: #e8f0fe;
+  --color-ok: #15803d;
+  --color-ok-soft: #dcfce7;
+  --color-warn: #b45309;
+  --color-warn-soft: #fef3c7;
+  --color-danger: #b91c1c;
+  --color-danger-soft: #fee2e2;
+  --color-drift: #6d28d9;
+  --color-drift-soft: #ede9fe;
+  --color-neutral: #4b5563;
+  --color-neutral-soft: #e5e7eb;
+  --color-code-bg: #0f172a;
+  --color-code-text: #e2e8f0;
+
+  --font-sans:
+    "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 2px rgba(17, 24, 39, 0.06), 0 8px 24px rgba(17, 24, 39, 0.05);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+}
