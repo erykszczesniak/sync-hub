@@ -3,6 +3,7 @@ package com.erykszczesniak.systema.api
 import jakarta.validation.ConstraintViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.validation.BindException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
@@ -19,6 +20,7 @@ class ApiErrorHandler {
         ConstraintViolationException::class,
         MethodArgumentTypeMismatchException::class,
         MethodArgumentNotValidException::class,
+        BindException::class,
     )
     fun badRequest(ex: Exception): ResponseEntity<ApiError> =
         ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiError(ex.message ?: "bad request"))
