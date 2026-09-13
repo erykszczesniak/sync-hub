@@ -1,6 +1,8 @@
 synchub:
   scheduling:
     enabled: false
+  sync:
+    scheduled: false
 
 spring:
   datasource:

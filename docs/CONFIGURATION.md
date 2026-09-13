@@ -14,6 +14,8 @@ development only.
 | `SPRING_DATASOURCE_PASSWORD` | – | hub (prod) | Database password |
 | `SPRING_KAFKA_BOOTSTRAP_SERVERS` | `localhost:29092` | hub | Kafka brokers for change events |
 | `SYNCHUB_EVENTS_TRANSPORT` | `log` (dev) / `kafka` (prod) | hub | Where change events go: `kafka` or `log` |
+| `SYNCHUB_SYNC_SCHEDULED` | `true` | hub | Run incremental syncs on a schedule |
+| `SYNCHUB_SYNC_INTERVAL` | `60s` | hub | Delay between scheduled passes |
 | `SYSTEM_A_BASE_URL` | `http://localhost:8081` | hub | Base URL of System A |
 | `SYSTEM_A_API_KEY` | `system-a-dev-key` | hub, system-a-sim | API key the hub sends and the simulator expects |
 | `SYSTEM_A_PORT` | `8081` | system-a-sim | HTTP port of the simulator |
