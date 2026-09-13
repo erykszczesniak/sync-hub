@@ -62,6 +62,8 @@ class ChangeEventRecorderTest {
         assertThat(payload["before"]["stateCode"].asText()).isEqualTo("PEN")
         assertThat(payload["after"]["stateCode"].asText()).isEqualTo("PAI")
         assertThat(payload["sourceUpdatedAt"].asText()).isEqualTo("2026-03-01T10:00:00Z")
+        // before/after are System B records: only their business fields, no loader internals.
+        assertThat(payload["after"].fieldNames().asSequence().toList()).doesNotContain("key")
     }
 
     @Test
