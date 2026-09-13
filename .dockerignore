@@ -1,0 +1,8 @@
+.git
+.gradle
+**/build
+**/node_modules
+dashboard/dist
+h2-data
+docs
+*.md
