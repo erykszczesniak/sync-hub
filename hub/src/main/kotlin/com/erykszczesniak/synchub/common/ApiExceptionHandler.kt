@@ -2,11 +2,13 @@ package com.erykszczesniak.synchub.common
 
 import com.erykszczesniak.synchub.sync.FeedBusyException
 import com.erykszczesniak.synchub.sync.UnknownFeedException
+import jakarta.validation.ConstraintViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ProblemDetail
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.method.annotation.HandlerMethodValidationException
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
 
 /** RFC 9457 problem details for the control and status API; entities never leak, exceptions never stack-trace. */
@@ -22,6 +24,8 @@ class ApiExceptionHandler {
         IllegalArgumentException::class,
         MethodArgumentNotValidException::class,
         MethodArgumentTypeMismatchException::class,
+        HandlerMethodValidationException::class,
+        ConstraintViolationException::class,
     )
     fun badRequest(ex: Exception): ProblemDetail = problem(HttpStatus.BAD_REQUEST, ex.message)
 
