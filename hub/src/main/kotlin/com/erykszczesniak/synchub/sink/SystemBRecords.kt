@@ -1,5 +1,6 @@
 package com.erykszczesniak.synchub.sink
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import java.time.Instant
 
 /**
@@ -25,6 +26,8 @@ data class SystemBCustomerRecord(
     val sourceCreatedAt: Instant,
     override val sourceUpdatedAt: Instant,
 ) : SystemBRecord {
+    /** Merge key for the loader; not part of the wire payload (`customerKey` already carries it). */
+    @get:JsonIgnore
     override val key: String get() = customerKey
 
     /** What "the same record" means for idempotency: every business attribute, not the version clock. */
@@ -58,6 +61,7 @@ data class SystemBOrderRecord(
     val placedAt: Instant,
     override val sourceUpdatedAt: Instant,
 ) : SystemBRecord {
+    @get:JsonIgnore
     override val key: String get() = orderKey
 
     override fun contentFingerprint(): String =
