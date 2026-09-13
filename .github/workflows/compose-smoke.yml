@@ -18,7 +18,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Start the stack
-        run: docker compose up --build -d
+        # The demo triggers syncs itself; a concurrent scheduler would make its exact counts racy.
+        run: SYNCHUB_SYNC_SCHEDULED=false docker compose up --build -d
       - name: Wait for the hub
         run: |
           for i in $(seq 1 60); do

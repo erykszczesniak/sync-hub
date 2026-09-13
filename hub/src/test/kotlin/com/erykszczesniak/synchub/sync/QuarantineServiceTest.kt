@@ -66,6 +66,22 @@ class QuarantineServiceTest {
     }
 
     @Test
+    fun `the same version re-read on the next run stays one open row`() {
+        val first = service.quarantine(record(t0, """{"id":"cus_1"}"""), runId, QuarantineReason.DRIFT, "renamed")
+        val again =
+            service.quarantine(
+                record(t0, """{"id":"cus_1"}"""),
+                UUID.randomUUID(),
+                QuarantineReason.DRIFT,
+                "renamed",
+            )
+
+        assertThat(again.id).isEqualTo(first.id)
+        assertThat(repository.countByFeedAndStatus("customers", QuarantineStatus.OPEN)).isEqualTo(1)
+        assertThat(repository.count()).isEqualTo(1)
+    }
+
+    @Test
     fun `discard and replay change the status with a note`() {
         val a = service.quarantine(record(t0, "{}"), runId, QuarantineReason.MAPPING, "x")
         service.discard(a.id, "test data")

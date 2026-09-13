@@ -4,6 +4,7 @@ import com.erykszczesniak.synchub.common.SourceAuthException
 import com.erykszczesniak.synchub.common.SourceResponseException
 import com.erykszczesniak.synchub.common.SourceUnavailableException
 import com.erykszczesniak.synchub.source.ExtractionWindow
+import com.erykszczesniak.synchub.source.pages
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock.aResponse
 import com.github.tomakehurst.wiremock.client.WireMock.equalTo
@@ -35,6 +36,15 @@ import java.time.Instant
 class CustomerRestExtractorTest {
     @Autowired
     private lateinit var extractor: CustomerRestExtractor
+
+    @Autowired
+    private lateinit var circuitBreakers: io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry
+
+    @BeforeEach
+    fun resetBreaker() {
+        // The Spring context (and its breaker) is shared across test classes in the JVM.
+        circuitBreakers.circuitBreaker("system-a").reset()
+    }
 
     @BeforeEach
     fun resetStubs() {

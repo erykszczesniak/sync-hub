@@ -47,9 +47,10 @@ interface SourceMapper<T : Any> {
  */
 class PayloadReader(
     private val root: JsonNode,
+    /** Shared with child readers (see [objects]) so problems inside nested arrays are not lost. */
+    private val errors: MutableList<FieldError> = mutableListOf(),
+    private val prefix: String = "",
 ) {
-    private val errors = mutableListOf<FieldError>()
-
     fun text(path: String): String = textOrNull(path) ?: missing(path, "text").let { "" }
 
     fun textOrNull(path: String): String? = node(path)?.takeIf { it.isTextual }?.asText()
@@ -58,7 +59,7 @@ class PayloadReader(
         try {
             textOrNull(path)?.let(Instant::parse) ?: missing(path, "ISO-8601 timestamp").let { Instant.EPOCH }
         } catch (ex: DateTimeParseException) {
-            errors += FieldError(path, "is not an ISO-8601 timestamp: ${ex.parsedString}")
+            errors += FieldError(prefix + path, "is not an ISO-8601 timestamp: ${ex.parsedString}")
             Instant.EPOCH
         }
 
@@ -74,7 +75,7 @@ class PayloadReader(
     fun textList(path: String): List<String> {
         val node = node(path) ?: return emptyList()
         if (!node.isArray) {
-            errors += FieldError(path, "must be an array")
+            errors += FieldError(prefix + path, "must be an array")
             return emptyList()
         }
         return node.map { it.asText() }
@@ -86,7 +87,7 @@ class PayloadReader(
             missing(path, "array")
             return emptyList()
         }
-        return node.map { PayloadReader(it) }
+        return node.mapIndexed { index, element -> PayloadReader(element, errors, "$prefix$path[$index].") }
     }
 
     inline fun <reified E : Enum<E>> enum(path: String): E {
@@ -103,7 +104,7 @@ class PayloadReader(
         path: String,
         message: String,
     ) {
-        errors += FieldError(path, message)
+        errors += FieldError(prefix + path, message)
     }
 
     fun throwIfAny() {
@@ -114,7 +115,7 @@ class PayloadReader(
         path: String,
         expected: String,
     ) {
-        errors += FieldError(path, "missing or not a $expected")
+        errors += FieldError(prefix + path, "missing or not a $expected")
     }
 
     private fun node(path: String): JsonNode? =

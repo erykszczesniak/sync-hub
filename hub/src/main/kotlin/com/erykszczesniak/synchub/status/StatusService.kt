@@ -51,7 +51,8 @@ class StatusService(
     ): FeedHealthDto {
         val pipeline = registry.get(name)
         val lastRun = runs.findFirstByFeedOrderByStartedAtDesc(name)
-        val lastSuccess = runs.findFirstByFeedAndStatusOrderByStartedAtDesc(name, SyncRunStatus.SUCCEEDED)
+        // A PARTIAL run extracted and processed everything (some records quarantined): the feed is still fresh.
+        val lastSuccess = runs.findFirstByFeedAndStatusInOrderByStartedAtDesc(name, COMPLETED)
         val lastCompleted = lastRun?.takeIf { it.status != SyncRunStatus.RUNNING }
         val openDrift = drift.countByFeedAndStatus(name, DriftStatus.OPEN)
         val freshness = lastSuccess?.finishedAt?.let { Duration.between(it, now).seconds }
@@ -177,4 +178,8 @@ class StatusService(
             "orders" -> orders.countByDeletedAtIsNull()
             else -> 0
         }
+
+    companion object {
+        private val COMPLETED = listOf(SyncRunStatus.SUCCEEDED, SyncRunStatus.PARTIAL)
+    }
 }

@@ -15,7 +15,18 @@ ADMIN="${SYNCHUB_ADMIN_USERNAME:-admin}:${SYNCHUB_ADMIN_PASSWORD:-change-me}"
 
 step() { printf '\n\033[1m== %s\033[0m\n' "$1"; }
 json() { python3 -c "import sys, json; d = json.load(sys.stdin); print($1)"; }
-hub_post() { curl -fsS -u "$ADMIN" -X POST -H "Content-Type: application/json" "$HUB_URL$1" ${2:+-d "$2"}; }
+# A scheduled run may hold the feed lock (409 Conflict): wait and try again instead of failing the demo.
+hub_post() {
+  local attempt body code
+  for attempt in 1 2 3 4 5 6; do
+    body=$(curl -sS -u "$ADMIN" -X POST -H "Content-Type: application/json" -w '\n%{http_code}' "$HUB_URL$1" ${2:+-d "$2"})
+    code=${body##*$'\n'}; body=${body%$'\n'*}
+    if [ "$code" = "409" ]; then sleep 5; continue; fi
+    [ "${code:0:1}" = "2" ] || { echo "hub answered $code: $body" >&2; return 1; }
+    printf '%s' "$body"; return 0
+  done
+  echo "feed still busy after $attempt attempts" >&2; return 1
+}
 hub_get() { curl -fsS "$HUB_URL$1"; }
 sysa() { curl -fsS -H "X-API-Key: $API_KEY" -H "Content-Type: application/json" -X "$1" "$SYSTEM_A_URL$2" ${3:+-d "$3"}; }
 expect() { # expect <actual> <expected> <label>

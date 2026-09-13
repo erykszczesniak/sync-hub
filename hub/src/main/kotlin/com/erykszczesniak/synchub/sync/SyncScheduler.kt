@@ -25,6 +25,10 @@ class SyncScheduler(
                 orchestrator.runIncremental(feed, SyncTrigger.SCHEDULED)
             } catch (ex: FeedBusyException) {
                 log.info("Skipping scheduled sync: {}", ex.message)
+            } catch (
+                @Suppress("TooGenericExceptionCaught") ex: RuntimeException,
+            ) {
+                log.error("Scheduled sync of '{}' failed", feed, ex)
             }
         }
     }

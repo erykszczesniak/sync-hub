@@ -32,6 +32,14 @@ class ApiExceptionHandler {
     @ExceptionHandler(SourceException::class)
     fun source(ex: SourceException): ProblemDetail = problem(HttpStatus.BAD_GATEWAY, ex.message)
 
+    @ExceptionHandler(Exception::class)
+    fun unexpected(ex: Exception): ProblemDetail {
+        log.error("Unhandled error in the API", ex)
+        return problem(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error; see the hub log")
+    }
+
+    private val log = org.slf4j.LoggerFactory.getLogger(javaClass)
+
     private fun problem(
         status: HttpStatus,
         detail: String?,
