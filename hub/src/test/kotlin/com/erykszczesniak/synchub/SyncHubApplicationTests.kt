@@ -26,6 +26,9 @@ class SyncHubApplicationTests {
         mockMvc.get("/v3/api-docs").andExpect {
             status { isOk() }
             jsonPath("$.info.title") { value("sync-hub API") }
+            jsonPath("$.paths['/api/status/runs'].get.parameters[*].name") {
+                value(org.hamcrest.Matchers.containsInAnyOrder("feed", "page", "size"))
+            }
         }
     }
 

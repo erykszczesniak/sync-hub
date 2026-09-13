@@ -5,6 +5,7 @@ import com.erykszczesniak.synchub.sync.UnknownFeedException
 import jakarta.validation.ConstraintViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ProblemDetail
+import org.springframework.validation.BindException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
@@ -23,6 +24,7 @@ class ApiExceptionHandler {
     @ExceptionHandler(
         IllegalArgumentException::class,
         MethodArgumentNotValidException::class,
+        BindException::class,
         MethodArgumentTypeMismatchException::class,
         HandlerMethodValidationException::class,
         ConstraintViolationException::class,

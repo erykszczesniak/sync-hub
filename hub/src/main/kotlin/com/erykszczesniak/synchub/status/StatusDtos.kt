@@ -2,6 +2,7 @@ package com.erykszczesniak.synchub.status
 
 import com.erykszczesniak.synchub.repository.DriftEventEntity
 import com.erykszczesniak.synchub.repository.QuarantinedRecordEntity
+import com.erykszczesniak.synchub.repository.SyncRunEntity
 import org.springframework.data.domain.Page
 import java.time.Instant
 
@@ -146,4 +147,58 @@ fun DriftEventEntity.toDto() =
                     .seconds
                     .coerceAtLeast(0)
             },
+    )
+
+data class SyncRunDto(
+    val id: String,
+    val feed: String,
+    val mode: String,
+    val trigger: String,
+    val status: String,
+    val startedAt: Instant,
+    val finishedAt: Instant?,
+    val durationMs: Long?,
+    val extracted: Int,
+    val transformed: Int,
+    val loaded: Int,
+    val skipped: Int,
+    val quarantined: Int,
+    val failed: Int,
+    val driftDetected: Boolean,
+    val watermarkBefore: Instant?,
+    val watermarkAfter: Instant?,
+    val backfillFrom: Instant?,
+    val backfillTo: Instant?,
+    val maxLagSeconds: Long?,
+    val errorMessage: String?,
+)
+
+fun SyncRunEntity.toDto() =
+    SyncRunDto(
+        id = id.toString(),
+        feed = feed,
+        mode = mode.name,
+        trigger = trigger.name,
+        status = status.name,
+        startedAt = startedAt,
+        finishedAt = finishedAt,
+        durationMs =
+            finishedAt?.let {
+                java.time.Duration
+                    .between(startedAt, it)
+                    .toMillis()
+            },
+        extracted = extracted,
+        transformed = transformed,
+        loaded = loaded,
+        skipped = skipped,
+        quarantined = quarantined,
+        failed = failed,
+        driftDetected = driftDetected,
+        watermarkBefore = watermarkBefore,
+        watermarkAfter = watermarkAfter,
+        backfillFrom = backfillFrom,
+        backfillTo = backfillTo,
+        maxLagSeconds = maxLagSeconds,
+        errorMessage = errorMessage,
     )
