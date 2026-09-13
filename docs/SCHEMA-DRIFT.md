@@ -44,6 +44,6 @@ A run that hits the same rename on 400 records produces one event with `affected
 
 1. Fix the cause (the source rolls back, or the hub's contract and mapper are updated in a PR).
 2. Replay quarantined records (`POST /api/quarantine/{id}/replay`) or run a backfill over the window.
-3. Resolve the event (`POST /api/drift/{id}/resolve`). A clean backfill of the feed resolves its open
-   events automatically; a successful load of a quarantined key at or after the quarantined version
+3. Resolve the event (`POST /api/drift/{id}/resolve`). A clean backfill whose window covers the
+   affected source changes resolves those open events automatically; a successful load of a quarantined key at or after the quarantined version
    marks that quarantine `SUPERSEDED`.

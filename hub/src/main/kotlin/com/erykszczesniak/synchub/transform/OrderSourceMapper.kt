@@ -6,7 +6,6 @@ import com.erykszczesniak.synchub.canonical.CanonicalOrderLine
 import com.erykszczesniak.synchub.canonical.OrderState
 import com.erykszczesniak.synchub.source.SourceRecord
 import org.springframework.stereotype.Component
-import java.math.BigDecimal
 import java.math.RoundingMode
 
 /**
@@ -25,19 +24,32 @@ class OrderSourceMapper : SourceMapper<CanonicalOrder> {
             businessKey = record.businessKey,
             customerKey = reader.text("customerId"),
             state = reader.enum<OrderState>("status"),
-            total = CanonicalMoney(toMinor(reader.decimal("total.amount")), reader.text("total.currency").uppercase()),
+            total = CanonicalMoney(toMinor(reader, "total.amount"), reader.text("total.currency").uppercase()),
             lines =
                 reader.objects("lines").map { line ->
                     CanonicalOrderLine(
                         sku = line.text("sku"),
                         quantity = line.int("quantity"),
-                        unitPriceMinor = toMinor(line.decimal("unitPrice")),
+                        unitPriceMinor = toMinor(line, "unitPrice"),
                     )
                 },
             placedAt = reader.instant("placedAt"),
             updatedAt = reader.instant("updatedAt"),
         )
 
-    private fun toMinor(amount: BigDecimal): Long =
-        amount.setScale(2, RoundingMode.UNNECESSARY).movePointRight(2).longValueExact()
+    /** Decimal string → minor units. More than two decimals cannot be represented and is reported, not rounded. */
+    private fun toMinor(
+        reader: PayloadReader,
+        path: String,
+    ): Long =
+        try {
+            reader
+                .decimal(path)
+                .setScale(2, RoundingMode.UNNECESSARY)
+                .movePointRight(2)
+                .longValueExact()
+        } catch (ex: ArithmeticException) {
+            reader.report(path, "must have at most two decimal places and fit in minor units (${ex.message})")
+            0L
+        }
 }

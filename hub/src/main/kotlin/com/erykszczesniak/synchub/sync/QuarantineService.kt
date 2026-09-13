@@ -31,7 +31,10 @@ class QuarantineService(
         details: String,
         now: Instant = Instant.now(),
     ): QuarantinedRecordEntity {
-        repository.findByFeedAndBusinessKeyAndStatus(record.feed, record.businessKey, QuarantineStatus.OPEN).forEach {
+        val open = repository.findByFeedAndBusinessKeyAndStatus(record.feed, record.businessKey, QuarantineStatus.OPEN)
+        // The watermark overlap re-reads recent records on every run; the same version stays one row.
+        open.firstOrNull { it.sourceUpdatedAt == record.sourceUpdatedAt }?.let { return it }
+        open.forEach {
             it.status = QuarantineStatus.SUPERSEDED
             it.resolvedAt = now
             it.resolutionNote = "superseded by a newer quarantined version"

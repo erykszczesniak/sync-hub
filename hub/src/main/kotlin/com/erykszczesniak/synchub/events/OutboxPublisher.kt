@@ -76,6 +76,9 @@ class OutboxPublisher(
             managed.lastError = null
             outbox.save(managed)
             true
+        } catch (ex: InterruptedException) {
+            Thread.currentThread().interrupt()
+            markFailed(managed, ex)
         } catch (ex: java.util.concurrent.ExecutionException) {
             markFailed(managed, ex)
         } catch (ex: java.util.concurrent.TimeoutException) {

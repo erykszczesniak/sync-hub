@@ -10,6 +10,7 @@ import com.erykszczesniak.synchub.repository.SyncTrigger
 import com.erykszczesniak.synchub.source.ExtractionWindow
 import com.erykszczesniak.synchub.source.SourceRecord
 import com.erykszczesniak.synchub.source.SystemAProperties
+import com.erykszczesniak.synchub.source.pages
 import org.slf4j.LoggerFactory
 import org.slf4j.MDC
 import org.springframework.stereotype.Service
@@ -71,6 +72,8 @@ class SyncOrchestrator(
     fun replay(quarantineId: UUID): SyncRunEntity {
         val (entry, record) = quarantine.openForReplay(quarantineId)
         val pipeline = registry.get(entry.feed)
+        val lock = locks.computeIfAbsent(entry.feed) { ReentrantLock() }
+        if (!lock.tryLock()) throw FeedBusyException(entry.feed)
         val run =
             runs.save(
                 SyncRunEntity(
@@ -86,12 +89,20 @@ class SyncOrchestrator(
             val state = RunState()
             state.extracted = 1
             state.newest = Watermark(record.sourceUpdatedAt, record.businessKey)
-            processOne(pipeline, record, run, state)
-            if (state.loaded + state.skipped > 0) quarantine.markReplayed(quarantineId, "replayed in run ${run.id}")
-            finish(run, state, failure = null)
+            try {
+                processOne(pipeline, record, run, state)
+                if (state.loaded + state.skipped > 0) quarantine.markReplayed(quarantineId, "replayed in run ${run.id}")
+                finish(run, state, failure = null)
+            } catch (
+                @Suppress("TooGenericExceptionCaught") ex: RuntimeException,
+            ) {
+                log.error("Replay {} failed unexpectedly", run.id, ex)
+                finish(run, state, failure = ex)
+            }
         } finally {
             MDC.remove("runId")
             MDC.remove("feed")
+            lock.unlock()
         }
         outboxPublisher.publishPending()
         return run
@@ -106,31 +117,38 @@ class SyncOrchestrator(
         val pipeline = registry.get(feed)
         val lock = locks.computeIfAbsent(feed) { ReentrantLock() }
         if (!lock.tryLock()) throw FeedBusyException(feed)
-        try {
-            val run =
-                runs.save(
-                    SyncRunEntity(
-                        feed = feed,
-                        mode = mode,
-                        trigger = trigger,
-                        backfillFrom = window?.since,
-                        backfillTo = window?.until,
-                        watermarkBefore = watermarks.read(feed)?.timestamp,
-                    ),
-                )
-            MDC.put("runId", run.id.toString())
-            MDC.put("feed", feed)
+        val finished =
             try {
-                execute(pipeline, run, window ?: watermarks.incrementalWindow(feed, syncProperties.watermarkOverlap))
+                val run =
+                    runs.save(
+                        SyncRunEntity(
+                            feed = feed,
+                            mode = mode,
+                            trigger = trigger,
+                            backfillFrom = window?.since,
+                            backfillTo = window?.until,
+                            watermarkBefore = watermarks.read(feed)?.timestamp,
+                        ),
+                    )
+                MDC.put("runId", run.id.toString())
+                MDC.put("feed", feed)
+                try {
+                    execute(
+                        pipeline,
+                        run,
+                        window ?: watermarks.incrementalWindow(feed, syncProperties.watermarkOverlap),
+                    )
+                } finally {
+                    MDC.remove("runId")
+                    MDC.remove("feed")
+                }
+                run
             } finally {
-                MDC.remove("runId")
-                MDC.remove("feed")
+                lock.unlock()
             }
-            outboxPublisher.publishPending()
-            return run
-        } finally {
-            lock.unlock()
-        }
+        // Outside the feed lock: a slow or unreachable broker must not block the next sync.
+        outboxPublisher.publishPending()
+        return finished
     }
 
     private fun execute(
@@ -154,6 +172,13 @@ class SyncOrchestrator(
             finish(run, state, failure = null)
         } catch (ex: SourceException) {
             log.error("Sync {} failed while reading the source: {}", run.id, ex.message)
+            finish(run, state, failure = ex)
+        } catch (
+            @Suppress("TooGenericExceptionCaught") ex: RuntimeException,
+        ) {
+            // Anything unexpected (a constraint violation, a bug) must still close the run: a row left
+            // RUNNING would report the feed as syncing forever and block the operator's view of the failure.
+            log.error("Sync {} failed unexpectedly", run.id, ex)
             finish(run, state, failure = ex)
         }
     }
@@ -227,15 +252,7 @@ class SyncOrchestrator(
         } else {
             run.watermarkAfter = watermarks.read(run.feed)?.timestamp
         }
-        val cleanBackfill = run.mode == SyncMode.BACKFILL && run.status == SyncRunStatus.SUCCEEDED
-        if (cleanBackfill && !counters.drift && counters.extracted > 0) {
-            val resolved = driftEvents.resolveAllOpen(run.feed, "resolved by clean backfill run ${run.id}")
-            if (resolved >
-                0
-            ) {
-                log.info("Clean backfill {} resolved {} open drift event(s) on '{}'", run.id, resolved, run.feed)
-            }
-        }
+        resolveDriftAfterCleanBackfill(run, counters)
         runs.save(run)
         log.info(
             "Sync {} {}: extracted={} loaded={} skipped={} quarantined={} drift={} watermark={} in {} ms",
@@ -249,6 +266,23 @@ class SyncOrchestrator(
             run.watermarkAfter,
             Duration.between(run.startedAt, run.finishedAt).toMillis(),
         )
+    }
+
+    /** A backfill that re-read its whole window cleanly proves the drift gone for the source changes inside it. */
+    private fun resolveDriftAfterCleanBackfill(
+        run: SyncRunEntity,
+        counters: RunState,
+    ) {
+        val from = run.backfillFrom ?: return
+        val to = run.backfillTo ?: return
+        if (run.mode != SyncMode.BACKFILL || run.status != SyncRunStatus.SUCCEEDED) return
+        if (counters.drift || counters.extracted == 0) return
+        val resolved = driftEvents.resolveOpenWithin(run.feed, from, to, "resolved by clean backfill run ${run.id}")
+        if (resolved >
+            0
+        ) {
+            log.info("Clean backfill {} resolved {} open drift event(s) on '{}'", run.id, resolved, run.feed)
+        }
     }
 
     private fun newer(

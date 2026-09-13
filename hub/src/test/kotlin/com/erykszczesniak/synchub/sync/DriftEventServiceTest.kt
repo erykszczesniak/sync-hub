@@ -78,6 +78,23 @@ class DriftEventServiceTest {
     }
 
     @Test
+    fun `resolveOpenWithin only closes events whose source change lies inside the window`() {
+        val runId = UUID.randomUUID()
+        service.record("customers", runId, listOf(rename), sourceUpdatedAt = t0.plusSeconds(600))
+        val other = DriftFinding(DriftKind.FIELD_MISSING, "tier", "STRING", null, "missing")
+        service.record("customers", runId, listOf(other), sourceUpdatedAt = t0.plusSeconds(6000))
+        val oversized = DriftFinding(DriftKind.FIELD_ADDED, "x".repeat(300), null, "STRING", "y".repeat(2000))
+        service.record("customers", runId, listOf(oversized), sourceUpdatedAt = null)
+
+        val resolved = service.resolveOpenWithin("customers", t0, t0.plusSeconds(1200), "clean backfill")
+
+        assertThat(resolved).isEqualTo(1)
+        val open = repository.findByFeedAndStatus("customers", DriftStatus.OPEN)
+        assertThat(open.map { it.kind.name }).containsExactlyInAnyOrder("FIELD_MISSING", "FIELD_ADDED")
+        assertThat(open.first { it.kind.name == "FIELD_ADDED" }.field).hasSize(128)
+    }
+
+    @Test
     fun `resolveAllOpen only touches the given feed`() {
         val runId = UUID.randomUUID()
         service.record("customers", runId, listOf(rename), t0)

@@ -22,6 +22,11 @@ interface SyncRunRepository : JpaRepository<SyncRunEntity, UUID> {
 
     fun findFirstByFeedOrderByStartedAtDesc(feed: String): SyncRunEntity?
 
+    fun findFirstByFeedAndStatusInOrderByStartedAtDesc(
+        feed: String,
+        statuses: Collection<SyncRunStatus>,
+    ): SyncRunEntity?
+
     fun existsByFeedAndStatus(
         feed: String,
         status: SyncRunStatus,

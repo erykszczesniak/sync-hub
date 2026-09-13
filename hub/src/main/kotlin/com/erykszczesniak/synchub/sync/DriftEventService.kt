@@ -30,7 +30,12 @@ class DriftEventService(
         now: Instant = Instant.now(),
     ): List<DriftEventEntity> =
         findings.map { finding ->
-            val existing = repository.findByFeedAndFingerprintAndStatus(feed, finding.fingerprint, DriftStatus.OPEN)
+            val existing =
+                repository.findByFeedAndFingerprintAndStatus(
+                    feed,
+                    finding.fingerprint.take(MAX_VALUE),
+                    DriftStatus.OPEN,
+                )
             if (existing != null) {
                 existing.affectedRecords += 1
                 existing.lastRunId = runId
@@ -42,12 +47,12 @@ class DriftEventService(
                 repository.save(
                     DriftEventEntity(
                         feed = feed,
-                        fingerprint = finding.fingerprint,
+                        fingerprint = finding.fingerprint.take(MAX_VALUE),
                         kind = StoredDriftKind.valueOf(finding.kind.name),
-                        field = finding.field,
-                        expected = finding.expected,
-                        actual = finding.actual,
-                        details = finding.details,
+                        field = finding.field.take(MAX_FIELD),
+                        expected = finding.expected?.take(MAX_VALUE),
+                        actual = finding.actual?.take(MAX_VALUE),
+                        details = finding.details.take(MAX_DETAILS),
                         affectedRecords = 1,
                         firstRunId = runId,
                         lastRunId = runId,
@@ -83,6 +88,33 @@ class DriftEventService(
         note: String,
         now: Instant = Instant.now(),
     ): Int = repository.findByFeedAndStatus(feed, DriftStatus.OPEN).onEach { resolve(it.id, note, now) }.size
+
+    /**
+     * A clean backfill only proves the drift gone for records it actually re-read: resolve the open
+     * events whose earliest affected source change falls inside the backfill window.
+     */
+    @Transactional
+    fun resolveOpenWithin(
+        feed: String,
+        from: Instant,
+        to: Instant,
+        note: String,
+        now: Instant = Instant.now(),
+    ): Int =
+        repository
+            .findByFeedAndStatus(feed, DriftStatus.OPEN)
+            .filter { event ->
+                val changed = event.sourceChangedAt
+                changed != null && !changed.isBefore(from) && !changed.isAfter(to)
+            }.onEach { resolve(it.id, note, now) }
+            .size
+
+    companion object {
+        // Column widths of drift_event; source values are untrusted and can be arbitrarily long.
+        private const val MAX_FIELD = 128
+        private const val MAX_VALUE = 256
+        private const val MAX_DETAILS = 1000
+    }
 
     private fun earliest(
         a: Instant?,

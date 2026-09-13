@@ -54,6 +54,11 @@ interface SinkLoader<B : SystemBRecord> {
  * 3. Same content (fingerprint) is SKIPPED_UNCHANGED, with the version clock nudged forward silently,
  *    so replaying a window produces no writes and no change events.
  * 4. Deletes are soft (`deletedAt`) so a later resurrection or a late update is still decidable.
+ *
+ * Known limitation: a delete for a key System B has never seen leaves no tombstone (every business
+ * column is NOT NULL), so an older create for that key delivered afterwards would insert it. The
+ * sources here keep one row per key, so a delete always follows a create; a history-replaying
+ * source would need a tombstone table.
  */
 abstract class AbstractSinkLoader<B : SystemBRecord, E : SystemBEntity> : SinkLoader<B> {
     private val log = LoggerFactory.getLogger(javaClass)

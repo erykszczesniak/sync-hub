@@ -34,6 +34,14 @@ class OrderSourceMapperTest {
     }
 
     @Test
+    fun `more than two decimal places is unmappable, not a crash`() {
+        val ex = assertThrows<MappingException> { mapper.toCanonical(record(VALID.replace("\"10.50\"", "\"10.505\""))) }
+
+        assertThat(ex.kind).isEqualTo(MappingFailureKind.UNMAPPABLE)
+        assertThat(ex.errors.map { it.field }).containsExactly("lines[0].unitPrice", "lines[1].unitPrice")
+    }
+
+    @Test
     fun `a total that does not reconcile with the lines is invalid`() {
         val ex = assertThrows<MappingException> { mapper.toCanonical(record(VALID.replace("31.50", "31.49"))) }
 

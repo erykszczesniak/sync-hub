@@ -67,6 +67,15 @@ class SyncOrchestratorTest {
     @Autowired
     private lateinit var watermarks: WatermarkStore
 
+    @Autowired
+    private lateinit var circuitBreakers: io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry
+
+    @BeforeEach
+    fun resetBreaker() {
+        // The Spring context (and its breaker) is shared across test classes in the JVM.
+        circuitBreakers.circuitBreaker("system-a").reset()
+    }
+
     @BeforeEach
     @org.junit.jupiter.api.AfterEach
     fun clean() {
@@ -220,11 +229,11 @@ class SyncOrchestratorTest {
         val entry = quarantine.findByFeedAndBusinessKeyAndStatus("customers", "cus_1", QuarantineStatus.OPEN).single()
         assertThat(entry.reason.name).isEqualTo("VALIDATION")
 
-        // Same payload again: still invalid → re-quarantined, the old entry superseded, nothing loaded.
+        // Same payload again: still invalid, nothing loaded; the same version keeps its one open row.
         val stillBroken = orchestrator.replay(entry.id)
         assertThat(stillBroken.mode.name).isEqualTo("REPLAY")
         assertThat(stillBroken.quarantined).isEqualTo(1)
-        assertThat(quarantine.findById(entry.id).orElseThrow().status).isEqualTo(QuarantineStatus.SUPERSEDED)
+        assertThat(quarantine.findById(entry.id).orElseThrow().status).isEqualTo(QuarantineStatus.OPEN)
         val reopened =
             quarantine
                 .findByFeedAndBusinessKeyAndStatus(
@@ -262,6 +271,75 @@ class SyncOrchestratorTest {
         assertThat(backfill.skipped).isEqualTo(1)
         assertThat(quarantine.countByFeedAndStatus("customers", QuarantineStatus.OPEN)).isZero()
         assertThat(drift.findByFeedAndStatus("customers", DriftStatus.OPEN)).isEmpty()
+    }
+
+    @Test
+    fun `a transient error on a later page is retried inside a run`() {
+        wireMock.stubFor(
+            get(urlPathEqualTo("/api/customers"))
+                .withQueryParam(
+                    "cursor",
+                    com.github.tomakehurst.wiremock.client.WireMock
+                        .absent(),
+                ).willReturn(okJson("""{"items":[${customer("cus_1", T1)}],"nextCursor":"p2","hasMore":true}""")),
+        )
+        wireMock.stubFor(
+            get(urlPathEqualTo("/api/customers"))
+                .withQueryParam("cursor", equalTo("p2"))
+                .inScenario("page2")
+                .whenScenarioStateIs(com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED)
+                .willReturn(aResponse().withStatus(503))
+                .willSetStateTo("up"),
+        )
+        wireMock.stubFor(
+            get(urlPathEqualTo("/api/customers"))
+                .withQueryParam("cursor", equalTo("p2"))
+                .inScenario("page2")
+                .whenScenarioStateIs("up")
+                .willReturn(okJson("""{"items":[${customer("cus_2", T2)}],"nextCursor":null,"hasMore":false}""")),
+        )
+
+        val run = orchestrator.runIncremental("customers", SyncTrigger.MANUAL)
+
+        assertThat(run.status).isEqualTo(SyncRunStatus.SUCCEEDED)
+        assertThat(run.loaded).isEqualTo(2)
+        wireMock.verify(
+            3,
+            com.github.tomakehurst.wiremock.client.WireMock
+                .getRequestedFor(urlPathEqualTo("/api/customers")),
+        )
+    }
+
+    @Test
+    fun `an unexpected failure while loading still closes the run as FAILED`() {
+        val tooLong =
+            customer("cus_1", T1).replace(
+                "\"firstName\":\"First\"",
+                "\"firstName\":\"" + "x".repeat(150) + "\"",
+            )
+        stubCustomers(page1 = listOf(tooLong))
+
+        val run = orchestrator.runIncremental("customers", SyncTrigger.MANUAL)
+
+        assertThat(run.status).isEqualTo(SyncRunStatus.FAILED)
+        assertThat(run.finishedAt).isNotNull()
+        assertThat(run.errorMessage).isNotBlank()
+        assertThat(runs.existsByFeedAndStatus("customers", SyncRunStatus.RUNNING)).isFalse()
+        assertThat(watermarks.read("customers")).isNull()
+    }
+
+    @Test
+    fun `a clean backfill of an unrelated window leaves the drift event open`() {
+        stubCustomers(page1 = listOf(customer("cus_1", T3).replace("\"email\"", "\"emailAddress\"")))
+        orchestrator.runIncremental("customers", SyncTrigger.MANUAL)
+        assertThat(drift.findByFeedAndStatus("customers", DriftStatus.OPEN)).hasSize(1)
+
+        wireMock.resetAll()
+        stubCustomers(page1 = listOf(customer("cus_9", T1)), since = "2026-01-01T00:00:00Z", until = T2)
+        val backfill = orchestrator.runBackfill("customers", Instant.parse("2026-01-01T00:00:00Z"), Instant.parse(T2))
+
+        assertThat(backfill.status).isEqualTo(SyncRunStatus.SUCCEEDED)
+        assertThat(drift.findByFeedAndStatus("customers", DriftStatus.OPEN)).hasSize(1)
     }
 
     @Test
