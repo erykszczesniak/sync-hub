@@ -1,20 +1,18 @@
 package com.erykszczesniak.synchub.source.rest
 
-import com.erykszczesniak.synchub.common.SourceAuthException
 import com.erykszczesniak.synchub.common.SourceResponseException
-import com.erykszczesniak.synchub.common.SourceUnavailableException
 import com.erykszczesniak.synchub.source.ExtractionWindow
 import com.erykszczesniak.synchub.source.SourceExtractor
 import com.erykszczesniak.synchub.source.SourcePage
 import com.erykszczesniak.synchub.source.SourceRecord
 import com.erykszczesniak.synchub.source.SystemAClientConfig.Companion.RESILIENCE_INSTANCE
+import com.erykszczesniak.synchub.source.SystemAErrors
 import com.fasterxml.jackson.databind.JsonNode
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter
 import io.github.resilience4j.retry.annotation.Retry
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
-import org.springframework.http.HttpStatus
 import org.springframework.http.HttpStatusCode
 import org.springframework.stereotype.Component
 import org.springframework.web.reactive.function.client.WebClient
@@ -64,9 +62,9 @@ class CustomerRestExtractor(
                     .bodyToMono(JsonNode::class.java)
                     .block()
             } catch (ex: WebClientResponseException) {
-                throw translate(ex)
+                throw SystemAErrors.translate(ex)
             } catch (ex: WebClientRequestException) {
-                throw SourceUnavailableException("System A unreachable: ${ex.message}", ex)
+                throw SystemAErrors.translate(ex)
             } ?: throw SourceResponseException("System A returned an empty body for /api/customers")
 
         val items = body.path("items")
@@ -104,19 +102,6 @@ class CustomerRestExtractor(
             payload = node,
         )
     }
-
-    private fun translate(ex: WebClientResponseException) =
-        when {
-            ex.statusCode == HttpStatus.UNAUTHORIZED || ex.statusCode == HttpStatus.FORBIDDEN ->
-                SourceAuthException("System A rejected the API key (${ex.statusCode.value()})")
-            ex.statusCode.is5xxServerError || ex.statusCode == HttpStatus.TOO_MANY_REQUESTS ->
-                SourceUnavailableException("System A answered ${ex.statusCode.value()}", ex)
-            else ->
-                SourceResponseException(
-                    "System A answered ${ex.statusCode.value()}: ${ex.responseBodyAsString}",
-                    ex,
-                )
-        }
 
     companion object {
         const val FEED = "customers"
